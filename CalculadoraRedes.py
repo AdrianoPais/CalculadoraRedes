@@ -16,7 +16,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-st.title("🕸️ Calculadora de Subnetting IPv4")
+st.title("Calculadora de Subnetting IPv4")
 st.markdown("Ferramenta para cálculo de redes, planeamento VLSM e segmentação.")
 
 # --- LÓGICA DE CALLBACK (ATUALIZAÇÃO AUTOMÁTICA) ---
@@ -38,7 +38,7 @@ def atualizar_dados_classe():
         st.session_state.cidr_slider_key = 24
 
 # --- BARRA LATERAL (INPUTS) ---
-st.sidebar.header("🕷️ Configuração")
+st.sidebar.header("Configuração")
 
 # 1. Seletor de Exemplos (NOVO)
 st.sidebar.selectbox(
@@ -181,3 +181,4 @@ if st.sidebar.button("Calcular Rede"):
 
 st.markdown("---")
 st.caption("Ferramenta de Estudo CCNA | 🕸️ Spider-Net Calculator")
+
