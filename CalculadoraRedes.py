@@ -3,8 +3,9 @@ import ipaddress
 import math
 import pandas as pd
 
-# Configuração da Página
-st.set_page_config(page_title="Calculadora IPv4", page_icon="🌐", layout="centered")
+# --- CONFIGURAÇÃO DA PÁGINA ---
+# Aqui está a tua aranha 🕷️
+st.set_page_config(page_title="Calculadora IPv4", page_icon=":spider:", layout="centered")
 
 # --- CSS PERSONALIZADO ---
 st.markdown("""
@@ -15,26 +16,65 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-st.title("Calculadora de Subnetting IPv4")
+st.title("🕸️ Calculadora de Subnetting IPv4")
 st.markdown("Ferramenta para cálculo de redes, planeamento VLSM e segmentação.")
 
+# --- LÓGICA DE CALLBACK (ATUALIZAÇÃO AUTOMÁTICA) ---
+def atualizar_dados_classe():
+    """Função que corre quando o utilizador muda a Classe"""
+    escolha = st.session_state.classe_selecionada
+    
+    if escolha == "Classe A (Privado)":
+        st.session_state.ip_input_key = "10.0.0.0"
+        # Ajustamos também o slider da máscara (opcional, mas útil)
+        st.session_state.cidr_slider_key = 8
+        
+    elif escolha == "Classe B (Privado)":
+        st.session_state.ip_input_key = "172.16.0.0"
+        st.session_state.cidr_slider_key = 16
+        
+    elif escolha == "Classe C (Privado)":
+        st.session_state.ip_input_key = "192.168.1.0"
+        st.session_state.cidr_slider_key = 24
+
 # --- BARRA LATERAL (INPUTS) ---
-st.sidebar.header("Configuração")
+st.sidebar.header("🕷️ Configuração")
 
-# 1. Input do IP
-ip_input = st.sidebar.text_input("Endereço IP Base", value="192.168.0.0")
+# 1. Seletor de Exemplos (NOVO)
+st.sidebar.selectbox(
+    "Carregar Exemplo Rápido:",
+    options=["Personalizado", "Classe A (Privado)", "Classe B (Privado)", "Classe C (Privado)"],
+    key="classe_selecionada",
+    on_change=atualizar_dados_classe # Chama a função sempre que mudas a opção
+)
 
-# 2. Escolha do Modo de Cálculo
+st.sidebar.divider()
+
+# 2. Input do IP (Agora ligado à chave 'ip_input_key')
+# Inicializamos a sessão se não existir
+if 'ip_input_key' not in st.session_state:
+    st.session_state.ip_input_key = "192.168.0.0"
+
+ip_input = st.sidebar.text_input("Endereço IP Base", key="ip_input_key")
+
+# 3. Escolha do Modo de Cálculo
 modo = st.sidebar.radio(
     "Como queres calcular?",
     ("Por Máscara (CIDR)", "Por Quantidade de Hosts", "Por Quantidade de Redes")
 )
 
-cidr_final = 24 # Valor por defeito
-qtd_a_listar = 8 # Padrão para a tabela
+# Inicializar variáveis
+cidr_final = 24 
+qtd_a_listar = 8 
+
+# --- LÓGICA DOS MODOS ---
 
 if modo == "Por Máscara (CIDR)":
-    cidr_final = st.sidebar.slider("Máscara (CIDR /xx)", 1, 32, 24)
+    # Se a chave do slider ainda não existir, cria-a
+    if 'cidr_slider_key' not in st.session_state:
+        st.session_state.cidr_slider_key = 24
+        
+    cidr_final = st.sidebar.slider("Máscara (CIDR /xx)", 1, 32, key="cidr_slider_key")
     qtd_a_listar = st.sidebar.number_input("Quantas redes vizinhas mostrar?", 1, 100, 8)
 
 elif modo == "Por Quantidade de Hosts":
@@ -55,36 +95,24 @@ elif modo == "Por Quantidade de Hosts":
             st.sidebar.info(f"ℹ️ Para {target_hosts} hosts, precisas de uma **/{cidr_final}**")
 
 else: 
-    # --- NOVO MODO: POR QUANTIDADE DE REDES ---
+    # MODO: POR QUANTIDADE DE REDES
     st.sidebar.markdown("---")
-    st.sidebar.write("Vais dividir uma rede grande em pedaços mais pequenos.")
+    st.sidebar.caption("Dividir uma rede maior em pedaços.")
     
-    # Precisamos saber o tamanho original para saber quantos bits roubar
+    # Nota: Aqui uso um slider diferente para não entrar em conflito com o automático
     cidr_origem = st.sidebar.slider("Qual é a Máscara Original?", 1, 31, 24)
     target_subnets = st.sidebar.number_input("Quantas Sub-redes queres criar?", min_value=1, value=4)
     
-    # 1. Calcular bits necessários (2^n >= subnets)
-    # log2(4) = 2 bits. log2(5) = 2.32 -> ceil -> 3 bits
     bits_borrowed = math.ceil(math.log2(target_subnets))
-    
-    # 2. Nova máscara
     cidr_calculated = cidr_origem + bits_borrowed
     
     if cidr_calculated > 32:
-        st.sidebar.error(f"Impossível dividir uma /{cidr_origem} em {target_subnets} pedaços (Falta espaço).")
+        st.sidebar.error(f"Impossível dividir (Falta espaço).")
         cidr_final = None
     else:
         cidr_final = cidr_calculated
-        # Se o utilizador pediu 4 redes, mostramos 4 na tabela. Se pediu 50, mostramos 50.
         qtd_a_listar = target_subnets 
-        
-        st.sidebar.success(
-            f"""
-            ✅ **Cálculo de Segmentação:**
-            - Bits emprestados: {bits_borrowed}
-            - Nova Máscara: **/{cidr_final}**
-            """
-        )
+        st.sidebar.success(f"Bits emprestados: {bits_borrowed} | Nova Máscara: **/{cidr_final}**")
 
 # --- BOTÃO DE AÇÃO ---
 if st.sidebar.button("Calcular Rede"):
@@ -97,7 +125,7 @@ if st.sidebar.button("Calcular Rede"):
             network = interface.network 
 
             # --- RESULTADOS PRINCIPAIS ---
-            st.success(f"Rede Calculada: `{network}`")
+            st.success(f"🕸️ Rede Calculada: `{network}`")
 
             col1, col2, col3 = st.columns(3)
             with col1:
@@ -126,13 +154,11 @@ if st.sidebar.button("Calcular Rede"):
             st.divider()
 
             # --- TABELA DE REDES DINÂMICA ---
-            # Agora usamos a variável 'qtd_a_listar' em vez do fixo 8
-            st.subheader(f"Lista das Próximas {qtd_a_listar} Sub-redes")
+            st.subheader(f"📋 Lista das Próximas {qtd_a_listar} Sub-redes")
             
             lista_redes = []
             current_net = network
             
-            # Loop dinâmico
             for i in range(qtd_a_listar):
                 lista_redes.append({
                     "Sub-rede": str(current_net),
@@ -141,7 +167,6 @@ if st.sidebar.button("Calcular Rede"):
                     "Broadcast": str(current_net.broadcast_address)
                 })
                 
-                # Calcular a próxima
                 next_net_int = int(current_net.network_address) + current_net.num_addresses
                 if next_net_int > 4294967295: break
                 next_net_addr = ipaddress.IPv4Address(next_net_int)
@@ -155,5 +180,4 @@ if st.sidebar.button("Calcular Rede"):
             st.error(f"Erro: {e}")
 
 st.markdown("---")
-st.caption("Ferramenta de Estudo CCNA | Desenvolvido em Streamlit")
-
+st.caption("Ferramenta de Estudo CCNA | 🕸️ Spider-Net Calculator")
