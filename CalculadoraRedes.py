@@ -154,7 +154,7 @@ if st.sidebar.button("Calcular Rede"):
             st.divider()
 
             # --- TABELA DE REDES DINÂMICA ---
-            st.subheader(f"📋 Lista das Próximas {qtd_a_listar} Sub-redes")
+            st.subheader(f"Lista das Próximas {qtd_a_listar} Sub-redes")
             
             lista_redes = []
             current_net = network
@@ -181,4 +181,5 @@ if st.sidebar.button("Calcular Rede"):
 
 st.markdown("---")
 st.caption("Ferramenta de Estudo CCNA | 🕸️ Spider-Net Calculator")
+
 
