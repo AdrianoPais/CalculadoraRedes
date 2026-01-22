@@ -127,7 +127,7 @@ if st.sidebar.button("Calcular Rede"):
 
             # --- TABELA DE REDES DINÂMICA ---
             # Agora usamos a variável 'qtd_a_listar' em vez do fixo 8
-            st.subheader(f"📋 Lista das Próximas {qtd_a_listar} Sub-redes")
+            st.subheader(f"Lista das Próximas {qtd_a_listar} Sub-redes")
             
             lista_redes = []
             current_net = network
@@ -156,3 +156,4 @@ if st.sidebar.button("Calcular Rede"):
 
 st.markdown("---")
 st.caption("Ferramenta de Estudo CCNA | Desenvolvido em Streamlit")
+
