@@ -1,12 +1,12 @@
 import streamlit as st
 import ipaddress
 import math
-import pandas as pd # Opcional, mas ajuda a fazer tabelas bonitas
+import pandas as pd
 
 # Configuração da Página
-st.set_page_config(page_title="Calculadora IPv4", page_icon="", layout="centered")
+st.set_page_config(page_title="Calculadora IPv4", page_icon="🌐", layout="centered")
 
-# --- CSS PERSONALIZADO PARA REDUZIR MÉTRICAS ---
+# --- CSS PERSONALIZADO ---
 st.markdown("""
 <style>
 [data-testid="stMetricValue"] {
@@ -21,63 +21,83 @@ st.markdown("Ferramenta para cálculo de redes, planeamento VLSM e segmentação
 # --- BARRA LATERAL (INPUTS) ---
 st.sidebar.header("Configuração")
 
-# 1. Input do IP (Comum aos dois modos)
+# 1. Input do IP
 ip_input = st.sidebar.text_input("Endereço IP Base", value="192.168.0.0")
 
 # 2. Escolha do Modo de Cálculo
 modo = st.sidebar.radio(
     "Como queres calcular?",
-    ("Por Máscara (CIDR)", "Por Quantidade de Hosts")
+    ("Por Máscara (CIDR)", "Por Quantidade de Hosts", "Por Quantidade de Redes")
 )
 
 cidr_final = 24 # Valor por defeito
+qtd_a_listar = 8 # Padrão para a tabela
 
 if modo == "Por Máscara (CIDR)":
-    # Modo Original: Escolhe a /24, /30, etc.
     cidr_final = st.sidebar.slider("Máscara (CIDR /xx)", 1, 32, 24)
+    qtd_a_listar = st.sidebar.number_input("Quantas redes vizinhas mostrar?", 1, 100, 8)
 
-else:
-    # Novo Modo: Escolhe quantos PCs quer
+elif modo == "Por Quantidade de Hosts":
     target_hosts = st.sidebar.number_input("Quantos Hosts precisas?", min_value=1, value=50, step=1)
+    qtd_a_listar = st.sidebar.number_input("Quantas redes vizinhas mostrar?", 1, 100, 8)
     
     if target_hosts > 0:
-        # 1. Descobrir quantos bits de host (H) precisamos: 2^H - 2 >= hosts
         needed_bits = math.ceil(math.log2(target_hosts + 2))
+        if needed_bits < 2: needed_bits = 2 
         
-        if needed_bits < 2: 
-            needed_bits = 2 # Mínimo para /30
-            
-        # 2. Calcular o CIDR: 32 - H
         cidr_calculated = 32 - needed_bits
         
         if cidr_calculated < 0:
-            st.sidebar.error("Impossível! Demasiados hosts para IPv4.")
+            st.sidebar.error("Impossível! Demasiados hosts.")
             cidr_final = None
         else:
             cidr_final = cidr_calculated
-            
-            st.sidebar.info(
-                f"""
-                ℹ️ **Cálculo Automático:**
-                Necessários: {target_hosts} hosts
-                Bits de Host (H): {needed_bits}
-                Máscara Sugerida: **/{cidr_final}**
-                """
-            )
+            st.sidebar.info(f"ℹ️ Para {target_hosts} hosts, precisas de uma **/{cidr_final}**")
+
+else: 
+    # --- NOVO MODO: POR QUANTIDADE DE REDES ---
+    st.sidebar.markdown("---")
+    st.sidebar.write("Vais dividir uma rede grande em pedaços mais pequenos.")
+    
+    # Precisamos saber o tamanho original para saber quantos bits roubar
+    cidr_origem = st.sidebar.slider("Qual é a Máscara Original?", 1, 31, 24)
+    target_subnets = st.sidebar.number_input("Quantas Sub-redes queres criar?", min_value=1, value=4)
+    
+    # 1. Calcular bits necessários (2^n >= subnets)
+    # log2(4) = 2 bits. log2(5) = 2.32 -> ceil -> 3 bits
+    bits_borrowed = math.ceil(math.log2(target_subnets))
+    
+    # 2. Nova máscara
+    cidr_calculated = cidr_origem + bits_borrowed
+    
+    if cidr_calculated > 32:
+        st.sidebar.error(f"Impossível dividir uma /{cidr_origem} em {target_subnets} pedaços (Falta espaço).")
+        cidr_final = None
+    else:
+        cidr_final = cidr_calculated
+        # Se o utilizador pediu 4 redes, mostramos 4 na tabela. Se pediu 50, mostramos 50.
+        qtd_a_listar = target_subnets 
+        
+        st.sidebar.success(
+            f"""
+            ✅ **Cálculo de Segmentação:**
+            - Bits emprestados: {bits_borrowed}
+            - Nova Máscara: **/{cidr_final}**
+            """
+        )
 
 # --- BOTÃO DE AÇÃO ---
 if st.sidebar.button("Calcular Rede"):
     if cidr_final is None:
-        st.error("Por favor ajusta o número de hosts.")
+        st.error("Verifica os parâmetros na barra lateral.")
     else:
         try:
-            # Cria a rede baseada no IP e no CIDR
             network_str = f"{ip_input}/{cidr_final}"
             interface = ipaddress.IPv4Interface(network_str)
             network = interface.network 
 
             # --- RESULTADOS PRINCIPAIS ---
-            st.success(f"Rede Principal: `{network}`")
+            st.success(f"Rede Calculada: `{network}`")
 
             col1, col2, col3 = st.columns(3)
             with col1:
@@ -88,39 +108,32 @@ if st.sidebar.button("Calcular Rede"):
                 st.metric("Máscara Decimal", str(network.netmask))
 
             # --- DETALHES ---
-            with st.expander("Ver Detalhes Avançados (Primeiro/Último IP)", expanded=True):
+            with st.expander("Ver Detalhes Avançados", expanded=True):
                 total_hosts = network.num_addresses - 2
                 if total_hosts < 0: total_hosts = 0 
-
-                st.write(f"**Capacidade Real:** `{total_hosts}` hosts utilizáveis")
-                
-                if modo == "Por Quantidade de Hosts":
-                    desperdicio = total_hosts - target_hosts
-                    st.write(f"**Desperdício:** `{desperdicio}` IPs não usados.")
+                st.write(f"**Hosts por Sub-rede:** `{total_hosts}`")
 
                 if total_hosts > 0:
                     first_host = list(network.hosts())[0]
                     last_host = list(network.hosts())[-1]
-                    st.write(f"**Intervalo:** `{first_host}`  ➡  `{last_host}`")
+                    st.write(f"**Intervalo:** `{first_host}` ➡ `{last_host}`")
                     
-                    # Wildcard Mask
                     netmask_parts = str(network.netmask).split('.')
                     wildcard_parts = [str(255 - int(octet)) for octet in netmask_parts]
                     wildcard = ".".join(wildcard_parts)
-                    st.code(f"Wildcard Mask (para ACLs): {wildcard}", language="text")
+                    st.code(f"Wildcard Mask: {wildcard}", language="text")
 
             st.divider()
 
-            # --- NOVIDADE: TABELA DAS PRÓXIMAS 8 REDES ---
-            st.subheader("Planeamento de Sub-redes (Sequência)")
-            st.markdown(f"Se continuares a dividir a rede em blocos de **/{cidr_final}**, estas são as próximas:")
-
+            # --- TABELA DE REDES DINÂMICA ---
+            # Agora usamos a variável 'qtd_a_listar' em vez do fixo 8
+            st.subheader(f"📋 Lista das Próximas {qtd_a_listar} Sub-redes")
+            
             lista_redes = []
             current_net = network
             
-            # Gerar as próximas 8
-            for i in range(8):
-                # Guarda os dados desta rede
+            # Loop dinâmico
+            for i in range(qtd_a_listar):
                 lista_redes.append({
                     "Sub-rede": str(current_net),
                     "Primeiro IP": str(current_net.network_address + 1) if current_net.prefixlen < 31 else "N/A",
@@ -128,25 +141,18 @@ if st.sidebar.button("Calcular Rede"):
                     "Broadcast": str(current_net.broadcast_address)
                 })
                 
-                # Calcular a próxima rede matematicamente
-                # Converte IP da rede em inteiro, soma o total de IPs da sub-rede, reconverte para IP
+                # Calcular a próxima
                 next_net_int = int(current_net.network_address) + current_net.num_addresses
-                
-                # Proteção contra sair do limite do IPv4 (255.255.255.255)
-                if next_net_int > 4294967295:
-                    break
-                    
+                if next_net_int > 4294967295: break
                 next_net_addr = ipaddress.IPv4Address(next_net_int)
                 current_net = ipaddress.IPv4Network(f"{next_net_addr}/{cidr_final}")
 
-            # Mostrar como tabela interativa
             st.dataframe(lista_redes, hide_index=True, use_container_width=True)
 
         except ValueError:
-            st.error("❌ Endereço IP inválido. Verifica o formato (ex: 192.168.1.0).")
+            st.error("❌ Endereço IP inválido.")
         except Exception as e:
-            st.error(f"Ocorreu um erro: {e}")
+            st.error(f"Erro: {e}")
 
-# --- Rodapé ---
 st.markdown("---")
 st.caption("Ferramenta de Estudo CCNA | Desenvolvido em Streamlit")
