@@ -1,6 +1,6 @@
-# Spider-Net Calculator
-## Calculadora para Segmentação de Redes
-## Calculadora de Subnetting IPv4
+# Spider-Net Subnetting Calculator
+Calculadora para Segmentação de Redes
+Calculadora de Subnetting IPv4
 
 #### Esta é uma ferramenta interativa desenvolvida em Python com a biblioteca Streamlit, desenhada para auxiliar no planeamento e segmentação de redes IPv4. A aplicação permite realizar cálculos baseados em máscaras CIDR, quantidade de hosts necessários ou número de sub-redes pretendidas.
 
