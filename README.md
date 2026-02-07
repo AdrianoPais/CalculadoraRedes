@@ -38,8 +38,8 @@ Para correr esta aplicação localmente, deves seguir os passos abaixo:
     Clonar o repositório:
     Bash
 
-    git clone https://github.com/AdrianoPais/CalculadoraRedes.git
-    cd CalculadoraRedes
+    git clone https://github.com/AdrianoPais/SpiderNet-Subnetting-Calculator.git
+    cd SpiderNet-Subnetting-Calculator
 
     Instalar as dependências: Certifica-te de que tens o Python instalado e corre:
     Bash
